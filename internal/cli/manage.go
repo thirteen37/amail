@@ -105,7 +105,7 @@ func runMarkRead(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to mark as read: %w", err)
 	}
 
-	fmt.Printf("✓ Marked %s as read\n", msg.ID[:8])
+	fmt.Printf("✓ Marked %s as read\n", SafeShortID(msg.ID))
 	return nil
 }
 
@@ -145,7 +145,7 @@ func runArchive(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to archive: %w", err)
 	}
 
-	fmt.Printf("✓ Archived %s\n", msg.ID[:8])
+	fmt.Printf("✓ Archived %s\n", SafeShortID(msg.ID))
 	return nil
 }
 
@@ -185,6 +185,6 @@ func runDelete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to delete: %w", err)
 	}
 
-	fmt.Printf("✓ Deleted %s\n", msg.ID[:8])
+	fmt.Printf("✓ Deleted %s\n", SafeShortID(msg.ID))
 	return nil
 }

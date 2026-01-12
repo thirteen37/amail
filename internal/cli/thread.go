@@ -91,12 +91,12 @@ func runThread(cmd *cobra.Command, args []string) error {
 	for _, m := range messages {
 		// Format recipients
 		toStr := strings.Join(m.ToIDs, ",")
-		if len(toStr) > 25 {
-			toStr = toStr[:22] + "..."
+		if len([]rune(toStr)) > 25 {
+			toStr = string([]rune(toStr)[:22]) + "..."
 		}
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			m.ID[:8], m.FromID, toStr, m.CreatedAt.Format("15:04:05"))
+			SafeShortID(m.ID), m.FromID, toStr, m.CreatedAt.Format("15:04:05"))
 	}
 	w.Flush()
 
@@ -109,7 +109,7 @@ func runThread(cmd *cobra.Command, args []string) error {
 		if i > 0 {
 			fmt.Println(strings.Repeat("-", 40))
 		}
-		fmt.Printf("[%s] %s → %s (%s)\n", m.ID[:8], m.FromID, strings.Join(m.ToIDs, ","), m.CreatedAt.Format("15:04"))
+		fmt.Printf("[%s] %s → %s (%s)\n", SafeShortID(m.ID), m.FromID, strings.Join(m.ToIDs, ","), m.CreatedAt.Format("15:04"))
 		fmt.Println()
 		fmt.Println(m.Body)
 		fmt.Println()

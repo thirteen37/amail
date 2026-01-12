@@ -1,9 +1,11 @@
 package notify
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/thirteen37/amail/internal/db"
 )
@@ -35,12 +37,28 @@ func FromInboxMessage(msg *db.InboxMessage) *Message {
 }
 
 // Execute runs a notification command with template substitution
+// Uses environment variables to safely pass message data, avoiding shell injection
 func Execute(command string, msg *Message) error {
-	// Substitute template variables
-	cmd := substituteTemplateVars(command, msg)
+	// Create environment variables for template values
+	env := os.Environ()
+	env = append(env,
+		"AMAIL_ID="+msg.ID,
+		"AMAIL_FROM="+msg.From,
+		"AMAIL_TO="+msg.To,
+		"AMAIL_SUBJECT="+msg.Subject,
+		"AMAIL_BODY="+truncateForNotification(msg.Body, 100),
+		"AMAIL_PRIORITY="+msg.Priority,
+		"AMAIL_TYPE="+msg.Type,
+		"AMAIL_TIMESTAMP="+msg.Timestamp.Format("15:04:05"),
+	)
 
-	// Execute command via shell
-	return exec.Command("sh", "-c", cmd).Run()
+	// Substitute template variables with shell variable references
+	cmd := substituteTemplateVars(command)
+
+	// Execute command via shell with safe environment variables
+	c := exec.Command("sh", "-c", cmd)
+	c.Env = env
+	return c.Run()
 }
 
 // ExecuteAll runs all notification commands for a message
@@ -54,37 +72,43 @@ func ExecuteAll(commands []string, msg *Message) []error {
 	return errors
 }
 
-// substituteTemplateVars replaces {var} with message values
-func substituteTemplateVars(template string, msg *Message) string {
+// substituteTemplateVars replaces {var} with shell variable references
+// This allows the shell to safely expand the values from environment variables
+func substituteTemplateVars(template string) string {
 	replacements := map[string]string{
-		"{id}":        msg.ID,
-		"{from}":      msg.From,
-		"{to}":        msg.To,
-		"{subject}":   msg.Subject,
-		"{body}":      truncateForNotification(msg.Body, 100),
-		"{priority}":  msg.Priority,
-		"{type}":      msg.Type,
-		"{timestamp}": msg.Timestamp.Format("15:04:05"),
+		"{id}":        `"$AMAIL_ID"`,
+		"{from}":      `"$AMAIL_FROM"`,
+		"{to}":        `"$AMAIL_TO"`,
+		"{subject}":   `"$AMAIL_SUBJECT"`,
+		"{body}":      `"$AMAIL_BODY"`,
+		"{priority}":  `"$AMAIL_PRIORITY"`,
+		"{type}":      `"$AMAIL_TYPE"`,
+		"{timestamp}": `"$AMAIL_TIMESTAMP"`,
 	}
 
 	result := template
 	for key, value := range replacements {
-		// Escape single quotes in values for shell safety
-		safeValue := strings.ReplaceAll(value, "'", "'\\''")
-		result = strings.ReplaceAll(result, key, safeValue)
+		result = strings.ReplaceAll(result, key, value)
 	}
 
 	return result
 }
 
 // truncateForNotification truncates a string for notification display
+// Uses rune count instead of byte count for proper UTF-8 handling
 func truncateForNotification(s string, maxLen int) string {
 	// Replace newlines with spaces
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "\r", "")
 
-	if len(s) <= maxLen {
+	if utf8.RuneCountInString(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen-3] + "..."
+
+	// Truncate by runes, not bytes
+	runes := []rune(s)
+	if maxLen <= 3 {
+		return string(runes[:maxLen])
+	}
+	return string(runes[:maxLen-3]) + "..."
 }

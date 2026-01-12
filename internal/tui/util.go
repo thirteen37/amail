@@ -12,6 +12,14 @@ func generateID() string {
 	return hex.EncodeToString(bytes)
 }
 
+// SafeShortID returns the first 8 characters of an ID, or the full ID if shorter
+func SafeShortID(id string) string {
+	if len(id) <= 8 {
+		return id
+	}
+	return id[:8]
+}
+
 func timeNow() time.Time {
 	return time.Now()
 }

@@ -132,7 +132,10 @@ func resolveRecipients(toArg, fromID string, cfg *config.Config) ([]string, erro
 			}
 			resolved = members
 		} else {
-			// Individual recipient
+			// Individual recipient - validate it exists
+			if !cfg.IsValidRole(part) {
+				return nil, fmt.Errorf("unknown recipient: %s (valid roles: %v)", part, cfg.AllRoles())
+			}
 			resolved = []string{part}
 		}
 

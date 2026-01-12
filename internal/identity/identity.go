@@ -79,8 +79,12 @@ func MustResolve(cfg *config.Config) (*Resolution, error) {
 }
 
 // ExportCommand generates the shell command to export identity
+// The identity is escaped to prevent shell injection
 func ExportCommand(identity string) string {
-	return fmt.Sprintf("export %s=%s", EnvIdentity, identity)
+	// Escape shell-unsafe characters by wrapping in single quotes
+	// and escaping any embedded single quotes
+	safeIdentity := "'" + strings.ReplaceAll(identity, "'", "'\\''") + "'"
+	return fmt.Sprintf("export %s=%s", EnvIdentity, safeIdentity)
 }
 
 // GetTmuxSession returns the current tmux session name (exported for use elsewhere)

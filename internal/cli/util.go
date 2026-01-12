@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // generateID creates a short random ID for messages
@@ -13,6 +14,14 @@ func generateID() string {
 	bytes := make([]byte, 8)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// SafeShortID returns the first 8 characters of an ID, or the full ID if shorter
+func SafeShortID(id string) string {
+	if len(id) <= 8 {
+		return id
+	}
+	return id[:8]
 }
 
 // formatTimeAgo formats a time as a relative time string
@@ -64,15 +73,19 @@ func formatDuration(d time.Duration) string {
 	return string(rune(hours/10+'0')) + string(rune(hours%10+'0')) + " hours"
 }
 
-// truncate truncates a string to maxLen and adds "..." if truncated
+// truncate truncates a string to maxLen runes and adds "..." if truncated
+// Uses rune count instead of byte count for proper UTF-8 handling
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	if utf8.RuneCountInString(s) <= maxLen {
 		return s
 	}
+
+	// Truncate by runes, not bytes
+	runes := []rune(s)
 	if maxLen <= 3 {
-		return s[:maxLen]
+		return string(runes[:maxLen])
 	}
-	return s[:maxLen-3] + "..."
+	return string(runes[:maxLen-3]) + "..."
 }
 
 // parseRecipients parses a comma-separated list of recipients

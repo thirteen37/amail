@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thirteen37/amail/internal/config"
@@ -84,13 +83,13 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			}
 
 			fmt.Printf("Notified: [%s] %s - %s\n",
-				msg.ID[:8], msg.FromID, msg.Subject)
+				SafeShortID(msg.ID), msg.FromID, msg.Subject)
 		}
 	} else {
 		fmt.Println()
 		for _, msg := range messages {
 			fmt.Printf("  [%s] %s: %s (%s)\n",
-				msg.ID[:8], msg.FromID, msg.Subject, formatTimeAgo(msg.CreatedAt))
+				SafeShortID(msg.ID), msg.FromID, msg.Subject, formatTimeAgo(msg.CreatedAt))
 		}
 		fmt.Println()
 		fmt.Println("Use --notify to trigger notifications")
@@ -98,6 +97,3 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
-// Used for rate limiting notifications
-var lastNotificationTime = make(map[string]time.Time)

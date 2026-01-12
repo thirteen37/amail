@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -198,23 +199,10 @@ func TestGenerateDefaultConfigContent(t *testing.T) {
 	}
 
 	// Should contain roles
-	if !contains(content, `"pm"`) {
+	if !strings.Contains(content, `"pm"`) {
 		t.Error("expected content to contain pm role")
 	}
-	if !contains(content, `"dev"`) {
+	if !strings.Contains(content, `"dev"`) {
 		t.Error("expected content to contain dev role")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

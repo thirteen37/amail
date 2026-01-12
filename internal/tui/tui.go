@@ -589,15 +589,15 @@ func (m *Model) updateInboxTable() {
 		}
 
 		subject := msg.Subject
-		if len(subject) > 28 {
-			subject = subject[:25] + "..."
+		if len([]rune(subject)) > 28 {
+			subject = string([]rune(subject)[:25]) + "..."
 		}
 
 		timeAgo := formatTimeAgo(msg.CreatedAt)
 
 		rows[i] = table.Row{
 			status,
-			msg.ID[:8],
+			SafeShortID(msg.ID),
 			msg.FromID,
 			subject,
 			priority,

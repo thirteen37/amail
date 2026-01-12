@@ -92,8 +92,8 @@ func runInbox(cmd *cobra.Command, args []string) error {
 	for _, m := range messages {
 		// Format recipients
 		toStr := strings.Join(m.ToIDs, ",")
-		if len(toStr) > 20 {
-			toStr = toStr[:17] + "..."
+		if len([]rune(toStr)) > 20 {
+			toStr = string([]rune(toStr)[:17]) + "..."
 		}
 
 		// Format subject
@@ -118,7 +118,7 @@ func runInbox(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\n",
-			statusIndicator, m.ID[:8], m.FromID, subject, toStr, priorityStr, formatTimeAgo(m.CreatedAt))
+			statusIndicator, SafeShortID(m.ID), m.FromID, subject, toStr, priorityStr, formatTimeAgo(m.CreatedAt))
 	}
 
 	w.Flush()

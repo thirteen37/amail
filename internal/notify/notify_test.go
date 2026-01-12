@@ -1,7 +1,6 @@
 package notify
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -42,53 +41,28 @@ func TestFromInboxMessage(t *testing.T) {
 }
 
 func TestSubstituteTemplateVars(t *testing.T) {
-	msg := &Message{
-		ID:        "abc123",
-		From:      "pm",
-		To:        "dev,qa",
-		Subject:   "Hello World",
-		Body:      "Message body",
-		Priority:  "urgent",
-		Type:      "notification",
-		Timestamp: time.Date(2025, 1, 15, 14, 30, 45, 0, time.UTC),
-	}
-
+	// substituteTemplateVars now converts placeholders to shell variable references
 	tests := []struct {
 		template string
 		expected string
 	}{
-		{"echo {from}", "echo pm"},
-		{"echo {subject}", "echo Hello World"},
-		{"{from} -> {to}", "pm -> dev,qa"},
-		{"[{priority}] {subject}", "[urgent] Hello World"},
-		{"ID: {id}", "ID: abc123"},
-		{"{type}: {body}", "notification: Message body"},
-		{"Time: {timestamp}", "Time: 14:30:45"},
+		{"echo {from}", `echo "$AMAIL_FROM"`},
+		{"echo {subject}", `echo "$AMAIL_SUBJECT"`},
+		{"{from} -> {to}", `"$AMAIL_FROM" -> "$AMAIL_TO"`},
+		{"[{priority}] {subject}", `["$AMAIL_PRIORITY"] "$AMAIL_SUBJECT"`},
+		{"ID: {id}", `ID: "$AMAIL_ID"`},
+		{"{type}: {body}", `"$AMAIL_TYPE": "$AMAIL_BODY"`},
+		{"Time: {timestamp}", `Time: "$AMAIL_TIMESTAMP"`},
 		{"No vars here", "No vars here"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.template, func(t *testing.T) {
-			result := substituteTemplateVars(tt.template, msg)
+			result := substituteTemplateVars(tt.template)
 			if result != tt.expected {
 				t.Errorf("expected '%s', got '%s'", tt.expected, result)
 			}
 		})
-	}
-}
-
-func TestSubstituteWithQuotes(t *testing.T) {
-	msg := &Message{
-		ID:      "abc123",
-		From:    "pm",
-		Subject: "It's a test",
-		Body:    "Body with 'quotes'",
-	}
-
-	// Single quotes in values should be escaped for shell safety
-	result := substituteTemplateVars("echo '{subject}'", msg)
-	if !strings.Contains(result, "It") {
-		t.Errorf("expected subject to be included, got '%s'", result)
 	}
 }
 
@@ -103,6 +77,10 @@ func TestTruncateForNotification(t *testing.T) {
 		{"this is a longer string", 10, "this is..."},
 		{"with\nnewlines\nhere", 100, "with newlines here"},
 		{"", 10, ""},
+		// UTF-8 handling - truncate by runes, not bytes
+		{"日本語テスト", 5, "日本..."},
+		{"Hello世界", 8, "Hello世界"},
+		{"🚀🎉🎊🎁", 3, "🚀🎉🎊"},
 	}
 
 	for _, tt := range tests {
@@ -127,8 +105,9 @@ func TestExecute(t *testing.T) {
 		t.Errorf("expected success, got error: %v", err)
 	}
 
-	// Command with template vars
-	err = Execute("test '{from}' = 'pm'", msg)
+	// Command with template vars - now uses environment variables
+	// {from} becomes "$AMAIL_FROM" which expands to "pm" from env
+	err = Execute("test {from} = 'pm'", msg)
 	if err != nil {
 		t.Errorf("expected success with template, got error: %v", err)
 	}

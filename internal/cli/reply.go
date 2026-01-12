@@ -146,7 +146,7 @@ func runReply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to send reply: %w", err)
 	}
 
-	fmt.Printf("✓ Sent %s to: %s (thread: %s)\n", msg.ID[:8], strings.Join(recipients, ", "), threadID[:8])
+	fmt.Printf("✓ Sent %s to: %s (thread: %s)\n", SafeShortID(msg.ID), strings.Join(recipients, ", "), SafeShortID(threadID))
 
 	return nil
 }

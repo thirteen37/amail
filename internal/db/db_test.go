@@ -450,3 +450,179 @@ func TestMultipleRecipients(t *testing.T) {
 		t.Errorf("expected 3 ToIDs, got %d", len(retrieved.ToIDs))
 	}
 }
+
+func TestGetRecipientsForMessages(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create multiple messages with different recipients
+	msg1 := &Message{
+		ID:        "msg001",
+		FromID:    "pm",
+		Subject:   "First",
+		Body:      "Body 1",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg1, []string{"dev", "qa"})
+
+	msg2 := &Message{
+		ID:        "msg002",
+		FromID:    "dev",
+		Subject:   "Second",
+		Body:      "Body 2",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg2, []string{"pm"})
+
+	msg3 := &Message{
+		ID:        "msg003",
+		FromID:    "qa",
+		Subject:   "Third",
+		Body:      "Body 3",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg3, []string{"dev", "pm", "user"})
+
+	t.Run("empty list", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(result) != 0 {
+			t.Errorf("expected empty map, got %d entries", len(result))
+		}
+	})
+
+	t.Run("single message", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{"msg001"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(result) != 1 {
+			t.Errorf("expected 1 entry, got %d", len(result))
+		}
+		if len(result["msg001"]) != 2 {
+			t.Errorf("expected 2 recipients for msg001, got %d", len(result["msg001"]))
+		}
+	})
+
+	t.Run("multiple messages", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{"msg001", "msg002", "msg003"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("expected 3 entries, got %d", len(result))
+		}
+		if len(result["msg001"]) != 2 {
+			t.Errorf("expected 2 recipients for msg001, got %d", len(result["msg001"]))
+		}
+		if len(result["msg002"]) != 1 {
+			t.Errorf("expected 1 recipient for msg002, got %d", len(result["msg002"]))
+		}
+		if len(result["msg003"]) != 3 {
+			t.Errorf("expected 3 recipients for msg003, got %d", len(result["msg003"]))
+		}
+	})
+
+	t.Run("non-existent message", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{"nonexistent"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should return empty map entry (or no entry) for non-existent message
+		if len(result["nonexistent"]) != 0 {
+			t.Errorf("expected 0 recipients for nonexistent, got %d", len(result["nonexistent"]))
+		}
+	})
+
+	t.Run("mixed existent and non-existent", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{"msg001", "nonexistent", "msg002"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(result["msg001"]) != 2 {
+			t.Errorf("expected 2 recipients for msg001, got %d", len(result["msg001"]))
+		}
+		if len(result["msg002"]) != 1 {
+			t.Errorf("expected 1 recipient for msg002, got %d", len(result["msg002"]))
+		}
+	})
+
+	t.Run("duplicate message IDs", func(t *testing.T) {
+		result, err := db.getRecipientsForMessages([]string{"msg001", "msg001", "msg001"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should still work, just return deduplicated results
+		if len(result["msg001"]) != 2 {
+			t.Errorf("expected 2 recipients for msg001, got %d", len(result["msg001"]))
+		}
+	})
+}
+
+func TestGetMessageRecipients(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	msg := &Message{
+		ID:        "msg001",
+		FromID:    "pm",
+		Subject:   "Test",
+		Body:      "Body",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg, []string{"dev", "qa", "user"})
+
+	t.Run("existing message", func(t *testing.T) {
+		recipients, err := db.getMessageRecipients("msg001")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(recipients) != 3 {
+			t.Errorf("expected 3 recipients, got %d", len(recipients))
+		}
+	})
+
+	t.Run("non-existent message", func(t *testing.T) {
+		recipients, err := db.getMessageRecipients("nonexistent")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(recipients) != 0 {
+			t.Errorf("expected 0 recipients for non-existent message, got %d", len(recipients))
+		}
+	})
+}
+
+func TestJoinStrings(t *testing.T) {
+	tests := []struct {
+		name     string
+		strs     []string
+		sep      string
+		expected string
+	}{
+		{"empty", []string{}, ",", ""},
+		{"single", []string{"a"}, ",", "a"},
+		{"two", []string{"a", "b"}, ",", "a,b"},
+		{"three", []string{"a", "b", "c"}, ",", "a,b,c"},
+		{"different sep", []string{"a", "b"}, " | ", "a | b"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := joinStrings(tt.strs, tt.sep)
+			if result != tt.expected {
+				t.Errorf("joinStrings(%v, %q) = %q, want %q", tt.strs, tt.sep, result, tt.expected)
+			}
+		})
+	}
+}

@@ -163,6 +163,7 @@ func (db *DB) GetInbox(toID string, includeRead bool) ([]InboxMessage, error) {
 	defer rows.Close()
 
 	var messages []InboxMessage
+	var messageIDs []string
 	for rows.Next() {
 		var msg InboxMessage
 		var threadID, replyToID sql.NullString
@@ -185,14 +186,27 @@ func (db *DB) GetInbox(toID string, includeRead bool) ([]InboxMessage, error) {
 			msg.ReadAt = &readAt.Time
 		}
 
-		// Get all recipients for this message
-		toIDs, err := db.getMessageRecipients(msg.ID)
-		if err != nil {
-			return nil, err
-		}
-		msg.ToIDs = toIDs
-
 		messages = append(messages, msg)
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating inbox rows: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return messages, nil
+	}
+
+	// Fetch all recipients for all messages in a single query
+	recipientMap, err := db.getRecipientsForMessages(messageIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign recipients to messages
+	for i := range messages {
+		messages[i].ToIDs = recipientMap[messages[i].ID]
 	}
 
 	return messages, nil
@@ -215,7 +229,64 @@ func (db *DB) getMessageRecipients(messageID string) ([]string, error) {
 		recipients = append(recipients, toID)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating recipient rows: %w", err)
+	}
+
 	return recipients, nil
+}
+
+// getRecipientsForMessages returns all recipients for multiple messages in a single query
+func (db *DB) getRecipientsForMessages(messageIDs []string) (map[string][]string, error) {
+	if len(messageIDs) == 0 {
+		return make(map[string][]string), nil
+	}
+
+	// Build query with placeholders
+	placeholders := make([]string, len(messageIDs))
+	args := make([]interface{}, len(messageIDs))
+	for i, id := range messageIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(
+		`SELECT message_id, to_id FROM recipients WHERE message_id IN (%s)`,
+		joinStrings(placeholders, ","),
+	)
+
+	rows, err := db.conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query recipients: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]string)
+	for rows.Next() {
+		var messageID, toID string
+		if err := rows.Scan(&messageID, &toID); err != nil {
+			return nil, fmt.Errorf("failed to scan recipient: %w", err)
+		}
+		result[messageID] = append(result[messageID], toID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating recipient rows: %w", err)
+	}
+
+	return result, nil
+}
+
+// joinStrings joins strings with a separator
+func joinStrings(strs []string, sep string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	result := strs[0]
+	for i := 1; i < len(strs); i++ {
+		result += sep + strs[i]
+	}
+	return result
 }
 
 // GetMessage retrieves a single message by ID
@@ -407,6 +478,7 @@ func (db *DB) GetThread(threadID string) ([]InboxMessage, error) {
 	defer rows.Close()
 
 	var messages []InboxMessage
+	var messageIDs []string
 	for rows.Next() {
 		var msg InboxMessage
 		var tid, replyToID sql.NullString
@@ -425,14 +497,27 @@ func (db *DB) GetThread(threadID string) ([]InboxMessage, error) {
 			msg.ReplyToID = &replyToID.String
 		}
 
-		// Get recipients
-		toIDs, err := db.getMessageRecipients(msg.ID)
-		if err != nil {
-			return nil, err
-		}
-		msg.ToIDs = toIDs
-
 		messages = append(messages, msg)
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating thread rows: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return messages, nil
+	}
+
+	// Fetch all recipients for all messages in a single query
+	recipientMap, err := db.getRecipientsForMessages(messageIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign recipients to messages
+	for i := range messages {
+		messages[i].ToIDs = recipientMap[messages[i].ID]
 	}
 
 	return messages, nil

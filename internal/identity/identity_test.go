@@ -74,10 +74,25 @@ func TestMustResolveSuccess(t *testing.T) {
 }
 
 func TestExportCommand(t *testing.T) {
-	cmd := ExportCommand("dev")
-	expected := "export AMAIL_IDENTITY=dev"
-	if cmd != expected {
-		t.Errorf("expected '%s', got '%s'", expected, cmd)
+	tests := []struct {
+		identity string
+		expected string
+	}{
+		{"dev", "export AMAIL_IDENTITY='dev'"},
+		{"pm", "export AMAIL_IDENTITY='pm'"},
+		// Test shell injection prevention
+		// Input: dev'; rm -rf / -> wrapped as 'dev'\''; rm -rf /'
+		{"dev'; rm -rf /", "export AMAIL_IDENTITY='dev'\\''; rm -rf /'"},
+		{"test$(whoami)", "export AMAIL_IDENTITY='test$(whoami)'"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.identity, func(t *testing.T) {
+			cmd := ExportCommand(tt.identity)
+			if cmd != tt.expected {
+				t.Errorf("expected '%s', got '%s'", tt.expected, cmd)
+			}
+		})
 	}
 }
 
