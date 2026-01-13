@@ -31,11 +31,16 @@ make install-skill
 
 ## Quick Start
 
+### Project Setup (one-time)
+
 ```bash
-# Initialize in your project
 cd ~/myproject
 amail init --agents pm,dev,qa
+```
 
+### Session Workflow
+
+```bash
 # Set your identity
 source <(amail use dev)
 

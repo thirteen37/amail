@@ -21,29 +21,32 @@ Use `amail` for agent-to-agent and agent-to-user messaging within the current pr
 
 ## Setup
 
-### Check Your Identity
+### Establish Your Identity
 
-First, verify your identity:
+At the start of a session, establish your identity:
 
-```bash
-amail whoami
-```
+1. Check if identity is already set:
+   ```bash
+   amail whoami
+   ```
 
-If identity is not set, the user will need to set it:
+2. If identity is not set, see what roles are available:
+   ```bash
+   amail list
+   ```
 
-```bash
-source <(amail use <role>)
-```
+3. Pick the role that matches your current task:
+   - `dev` - coding, implementation, debugging
+   - `qa` - testing, validation, quality checks
+   - `pm` - planning, coordination, requirements
+   - `research` - investigation, exploration, documentation
 
-Common roles: `pm`, `dev`, `qa`, `research`, `user`
+   If unclear from your task context, ask the user which role to use.
 
-### Initialize Project (if needed)
-
-If the project hasn't been initialized:
-
-```bash
-amail init --agents pm,dev,qa,research
-```
+4. Set your identity:
+   ```bash
+   source <(amail use <role>)
+   ```
 
 ## Commands Reference
 
@@ -153,15 +156,17 @@ When you need another agent to do something:
 amail send dev -p high -t request "Need API endpoint" "Please implement GET /api/users returning {id, name, email}. Spec in docs/api.md"
 ```
 
-### Example 3: Checking Inbox at Start of Session
+### Example 3: Starting a Session
 
 Good practice at the start of any task:
 
 ```bash
-# Quick count
-amail count
+# Check/establish identity
+amail whoami
+# If not set: amail list, then source <(amail use dev)
 
-# If there are messages, check them
+# Check for messages
+amail count
 amail inbox
 amail read --latest
 ```
