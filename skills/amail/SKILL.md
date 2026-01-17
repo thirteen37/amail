@@ -1,49 +1,51 @@
+---
+name: amail
+description: This skill should be used when the user asks to "send a message to an agent", "check inbox", "notify another agent", "tell dev about...", "ask qa...", "read my messages", "any new messages?", or mentions inter-agent communication. At session start, use this skill to establish identity and check for pending messages.
+version: 1.0.0
+---
+
 # amail - Agent Communication Skill
 
-Use `amail` for agent-to-agent and agent-to-user messaging within the current project.
+A CLI-based mailbox system for multi-agent coordination. Each project has its own message database, and agents identify by role (pm, dev, qa, etc.).
 
-## Overview
-
-`amail` is a CLI-based mailbox system for multi-agent coordination. Each project has its own message database, and agents identify by role (pm, dev, qa, etc.).
-
-## When to Use This Skill
+## When to Use
 
 **Sending messages:**
 - User says "send a message to [agent]" or "notify [agent]"
 - User says "tell [agent] about..." or "ask [agent]..."
-- You need to communicate with another agent session
-- You need to notify the user asynchronously
+- Need to communicate with another agent session
+- Need to notify the user asynchronously
 
 **Receiving messages:**
 - User says "check inbox" or "check messages"
 - User says "read my messages" or "any new messages?"
-- At the start of a task, to see if other agents have sent requests
+- At session start, check if other agents have sent requests
 
 ## Setup
 
-### Establish Your Identity
+### Establish Identity
 
-At the start of a session, establish your identity:
+At session start, establish identity:
 
 1. Check if identity is already set:
    ```bash
    amail whoami
    ```
 
-2. If identity is not set, see what roles are available:
+2. If identity is not set, list available roles:
    ```bash
    amail list
    ```
 
-3. Pick the role that matches your current task:
+3. Pick the role that matches the current task:
    - `dev` - coding, implementation, debugging
    - `qa` - testing, validation, quality checks
    - `pm` - planning, coordination, requirements
    - `research` - investigation, exploration, documentation
 
-   If unclear from your task context, ask the user which role to use.
+   If unclear from task context, prompt user for role selection.
 
-4. Set your identity:
+4. Set identity:
    ```bash
    source <(amail use <role>)
    ```
@@ -66,7 +68,7 @@ amail send dev,qa "<subject>" "<body>"
 # Send to groups
 amail send @all "<subject>" "<body>"      # All roles + user
 amail send @agents "<subject>" "<body>"   # All agent roles
-amail send @others "<subject>" "<body>"   # Everyone except you
+amail send @others "<subject>" "<body>"   # Everyone except sender
 
 # Send to user (human operator)
 amail send user "<subject>" "<body>"
@@ -114,7 +116,7 @@ amail mark-read --all
 # Archive a message
 amail archive <message-id>
 
-# Delete from your inbox
+# Delete from inbox
 amail delete <message-id>
 ```
 
@@ -138,63 +140,6 @@ amail stats
 amail tui
 ```
 
-## Examples
-
-### Example 1: Notifying Another Agent
-
-When you've completed a task that another agent needs to know about:
-
-```bash
-amail send qa "Feature ready for testing" "Implemented user authentication at src/auth/. Please run integration tests."
-```
-
-### Example 2: Requesting Work
-
-When you need another agent to do something:
-
-```bash
-amail send dev -p high -t request "Need API endpoint" "Please implement GET /api/users returning {id, name, email}. Spec in docs/api.md"
-```
-
-### Example 3: Starting a Session
-
-Good practice at the start of any task:
-
-```bash
-# Check/establish identity
-amail whoami
-# If not set: amail list, then source <(amail use dev)
-
-# Check for messages
-amail count
-amail inbox
-amail read --latest
-```
-
-### Example 4: Asking the User a Question
-
-When you need clarification from the human:
-
-```bash
-amail send user "Question: Auth approach" "Should we use JWT or session-based auth? JWT is simpler but sessions offer better revocation."
-```
-
-### Example 5: Broadcast Announcement
-
-Notify all agents:
-
-```bash
-amail send @agents "Build complete" "Main branch CI passed. Ready for deployment review."
-```
-
-### Example 6: Replying to a Request
-
-After receiving a request and completing it:
-
-```bash
-amail reply abc123 "Done. Implemented GET /api/users at routes/users.ts:45. Returns paginated results with ?page=1&limit=20"
-```
-
 ## Message Types and Priorities
 
 ### Priorities
@@ -216,27 +161,27 @@ amail reply abc123 "Done. Implemented GET /api/users at routes/users.ts:45. Retu
 1. **Check inbox at session start** - Other agents may have sent requests
 2. **Use meaningful subjects** - Makes inbox scanning easier
 3. **Include context in body** - File paths, line numbers, specifics
-4. **Use appropriate priority** - Don't cry wolf with urgent
+4. **Use appropriate priority** - Reserve urgent for truly critical items
 5. **Reply when work is done** - Close the communication loop
-6. **Send to user for decisions** - When you need human input
+6. **Send to user for decisions** - When human input is needed
 
 ## Identity Boundaries
 
-**Your inbox** = Messages sent TO YOUR role by other agents
+**Inbox scope** = Messages sent TO current role by other agents
 
-**You can read:**
-- ✅ Messages in your own inbox
-- ✅ Threads you're part of
+**Accessible:**
+- Messages in own inbox
+- Threads participated in
 
-**You should NOT read:**
-- ❌ Other agents' private inboxes
-- ❌ Messages not addressed to your role
+**Not accessible:**
+- Other agents' private inboxes
+- Messages not addressed to current role
 
 ## Troubleshooting
 
 ### "not in an amail project"
 
-Run `amail init` to initialize the project, or `cd` to the project root.
+Run `amail init` to initialize the project, or navigate to the project root.
 
 ### "identity not set"
 
