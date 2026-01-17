@@ -436,3 +436,43 @@ func TestInit(t *testing.T) {
 		t.Error("Init should return a command to refresh inbox")
 	}
 }
+
+func TestHelpToggle(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	cfg := testConfig()
+	m := NewModel(database, cfg, "dev")
+	m.view = ViewInbox
+
+	// Initially help should be in short mode
+	if m.showHelp {
+		t.Error("showHelp should initially be false")
+	}
+	if m.help.ShowAll {
+		t.Error("help.ShowAll should initially be false")
+	}
+
+	// Press '?' to toggle help
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	newModel, _ := m.Update(msg)
+	updated := newModel.(Model)
+
+	if !updated.showHelp {
+		t.Error("pressing '?' should toggle showHelp to true")
+	}
+	if !updated.help.ShowAll {
+		t.Error("pressing '?' should set help.ShowAll to true")
+	}
+
+	// Press '?' again to toggle back
+	newModel2, _ := updated.Update(msg)
+	updated2 := newModel2.(Model)
+
+	if updated2.showHelp {
+		t.Error("pressing '?' again should toggle showHelp back to false")
+	}
+	if updated2.help.ShowAll {
+		t.Error("pressing '?' again should set help.ShowAll back to false")
+	}
+}
