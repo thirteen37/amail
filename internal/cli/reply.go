@@ -44,16 +44,11 @@ func runReply(cmd *cobra.Command, args []string) error {
 	messageIDArg := args[0]
 	body := args[1]
 
-	// Validate priority
-	validPriorities := map[string]bool{"low": true, "normal": true, "high": true, "urgent": true}
-	if !validPriorities[replyPriority] {
-		return fmt.Errorf("invalid priority: %s", replyPriority)
+	if err := validatePriority(replyPriority); err != nil {
+		return err
 	}
-
-	// Validate type
-	validTypes := map[string]bool{"message": true, "request": true, "response": true, "notification": true}
-	if !validTypes[replyType] {
-		return fmt.Errorf("invalid type: %s", replyType)
+	if err := validateMsgType(replyType); err != nil {
+		return err
 	}
 
 	// Open project

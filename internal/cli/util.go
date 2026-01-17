@@ -64,13 +64,13 @@ func formatDuration(d time.Duration) string {
 		if mins == 1 {
 			return "1 min"
 		}
-		return string(rune(mins/10+'0')) + string(rune(mins%10+'0')) + " min"
+		return fmt.Sprintf("%d min", mins)
 	}
 	hours := int(d.Hours())
 	if hours == 1 {
 		return "1 hour"
 	}
-	return string(rune(hours/10+'0')) + string(rune(hours%10+'0')) + " hours"
+	return fmt.Sprintf("%d hours", hours)
 }
 
 // truncate truncates a string to maxLen runes and adds "..." if truncated
@@ -98,4 +98,26 @@ func parseRecipients(input string) []string {
 		}
 	}
 	return recipients
+}
+
+// Valid priority and message type values
+var (
+	validPriorities = map[string]bool{"low": true, "normal": true, "high": true, "urgent": true}
+	validMsgTypes   = map[string]bool{"message": true, "request": true, "response": true, "notification": true}
+)
+
+// validatePriority checks if a priority value is valid
+func validatePriority(priority string) error {
+	if !validPriorities[priority] {
+		return fmt.Errorf("invalid priority: %s (must be low, normal, high, or urgent)", priority)
+	}
+	return nil
+}
+
+// validateMsgType checks if a message type value is valid
+func validateMsgType(msgType string) error {
+	if !validMsgTypes[msgType] {
+		return fmt.Errorf("invalid type: %s (must be message, request, response, or notification)", msgType)
+	}
+	return nil
 }

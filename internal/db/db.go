@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -252,7 +253,7 @@ func (db *DB) getRecipientsForMessages(messageIDs []string) (map[string][]string
 
 	query := fmt.Sprintf(
 		`SELECT message_id, to_id FROM recipients WHERE message_id IN (%s)`,
-		joinStrings(placeholders, ","),
+		strings.Join(placeholders, ","),
 	)
 
 	rows, err := db.conn.Query(query, args...)
@@ -275,18 +276,6 @@ func (db *DB) getRecipientsForMessages(messageIDs []string) (map[string][]string
 	}
 
 	return result, nil
-}
-
-// joinStrings joins strings with a separator
-func joinStrings(strs []string, sep string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-	result := strs[0]
-	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
-	}
-	return result
 }
 
 // GetMessage retrieves a single message by ID

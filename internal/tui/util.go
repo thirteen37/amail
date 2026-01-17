@@ -3,6 +3,7 @@ package tui
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"time"
 )
 
@@ -35,19 +36,19 @@ func formatTimeAgo(t time.Time) string {
 		if mins == 1 {
 			return "1m"
 		}
-		return string(rune(mins/10+'0')) + string(rune(mins%10+'0')) + "m"
+		return fmt.Sprintf("%dm", mins)
 	case duration < 24*time.Hour:
 		hours := int(duration.Hours())
 		if hours == 1 {
 			return "1h"
 		}
-		return string(rune(hours/10+'0')) + string(rune(hours%10+'0')) + "h"
+		return fmt.Sprintf("%dh", hours)
 	case duration < 7*24*time.Hour:
 		days := int(duration.Hours() / 24)
 		if days == 1 {
 			return "1d"
 		}
-		return string(rune(days+'0')) + "d"
+		return fmt.Sprintf("%dd", days)
 	default:
 		return t.Format("Jan 2")
 	}
