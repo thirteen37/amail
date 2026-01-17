@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Never work directly on main.** Always use `/workbranch` (or `git worktree`) first.
+
 ## Build Commands
 
 ```bash
@@ -57,3 +59,12 @@ identity.Resolve()  config.LoadProject()  db.OpenProject()
 - **Project discovery:** Commands search parent directories for `.amail/` to find project root
 - **Notification safety:** Template variables passed via environment to prevent shell injection
 - **Lazy identity:** Identity only resolved when a command actually needs it
+
+## Git Workflow
+
+**Agents must never work directly on main.** Always use the `/workbranch` skill (or `git worktree` if the skill is unavailable) to create an isolated branch before making changes.
+
+This enables:
+- Multiple agents working in parallel without conflicts
+- Clean rollbacks if changes need to be reverted
+- Safe experimentation without affecting the main branch
