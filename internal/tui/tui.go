@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -39,11 +40,12 @@ type Model struct {
 	messageView   viewport.Model
 	composeInputs []textinput.Model
 	composeBody   textarea.Model
+	help          help.Model
 
 	// Data
-	messages       []db.InboxMessage
-	currentMessage *db.InboxMessage
-	mailboxes      []string
+	messages        []db.InboxMessage
+	currentMessage  *db.InboxMessage
+	mailboxes       []string
 	selectedMailbox int
 
 	// Compose state
@@ -57,6 +59,9 @@ type Model struct {
 	// Status
 	statusMsg string
 	err       error
+
+	// Help state
+	showHelp bool
 }
 
 // Styles
@@ -114,6 +119,7 @@ type keyMap struct {
 	Quit     key.Binding
 	Send     key.Binding
 	Cancel   key.Binding
+	Help     key.Binding
 }
 
 var keys = keyMap{
@@ -131,6 +137,64 @@ var keys = keyMap{
 	Quit:     key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 	Send:     key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "send")),
 	Cancel:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+	Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+}
+
+// View-specific KeyMap implementations for help.KeyMap interface
+
+type inboxKeyMap struct{}
+
+func (k inboxKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{keys.Enter, keys.Compose, keys.Help, keys.Quit}
+}
+
+func (k inboxKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{keys.Up, keys.Down, keys.Enter},
+		{keys.Compose, keys.Reply, keys.Delete},
+		{keys.MarkRead, keys.Refresh, keys.Tab},
+		{keys.Help, keys.Quit},
+	}
+}
+
+type messageKeyMap struct{}
+
+func (k messageKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{keys.Reply, keys.Back, keys.Help}
+}
+
+func (k messageKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{keys.Up, keys.Down},
+		{keys.Reply, keys.ReplyAll},
+		{keys.Back, keys.Help, keys.Quit},
+	}
+}
+
+type composeKeyMap struct{}
+
+func (k composeKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{keys.Send, keys.Cancel, keys.Help}
+}
+
+func (k composeKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{keys.Tab, keys.Send},
+		{keys.Cancel, keys.Help},
+	}
+}
+
+type mailboxesKeyMap struct{}
+
+func (k mailboxesKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{keys.Enter, keys.Back, keys.Help}
+}
+
+func (k mailboxesKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{keys.Up, keys.Down, keys.Enter},
+		{keys.Back, keys.Help, keys.Quit},
+	}
 }
 
 // NewModel creates a new TUI model
@@ -180,6 +244,10 @@ func NewModel(database *db.DB, cfg *config.Config, identity string) Model {
 	// Get all mailboxes
 	mailboxes := cfg.AllRoles()
 
+	// Create help component
+	h := help.New()
+	h.ShowAll = false
+
 	return Model{
 		db:            database,
 		cfg:           cfg,
@@ -189,6 +257,7 @@ func NewModel(database *db.DB, cfg *config.Config, identity string) Model {
 		messageView:   vp,
 		composeInputs: []textinput.Model{toInput, subjectInput},
 		composeBody:   bodyInput,
+		help:          h,
 		mailboxes:     mailboxes,
 		width:         80,
 		height:        24,
@@ -319,6 +388,11 @@ func (m Model) updateInbox(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selectedMailbox = (m.selectedMailbox + 1) % len(m.mailboxes)
 		m.identity = m.mailboxes[m.selectedMailbox]
 		return m, m.refreshInbox()
+
+	case key.Matches(msg, keys.Help):
+		m.showHelp = !m.showHelp
+		m.help.ShowAll = m.showHelp
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -360,6 +434,11 @@ func (m Model) updateMessage(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Quit):
 		return m, tea.Quit
+
+	case key.Matches(msg, keys.Help):
+		m.showHelp = !m.showHelp
+		m.help.ShowAll = m.showHelp
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -403,6 +482,11 @@ func (m Model) updateCompose(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.composeInputs[0].Focus()
 		}
 		return m, nil
+
+	case key.Matches(msg, keys.Help):
+		m.showHelp = !m.showHelp
+		m.help.ShowAll = m.showHelp
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -425,6 +509,10 @@ func (m Model) updateMailboxes(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, keys.Quit):
 		return m, tea.Quit
+	case key.Matches(msg, keys.Help):
+		m.showHelp = !m.showHelp
+		m.help.ShowAll = m.showHelp
+		return m, nil
 	}
 	return m, nil
 }
@@ -468,8 +556,8 @@ func (m Model) viewInbox() string {
 	b.WriteString("\n")
 
 	// Help
-	help := "↑/↓: navigate • enter: read • c: compose • r: reply • d: delete • m: mark read • g: refresh • tab: switch mailbox • q: quit"
-	b.WriteString(helpStyle.Render(help))
+	m.help.Width = m.width
+	b.WriteString(m.help.View(inboxKeyMap{}))
 
 	return b.String()
 }
@@ -488,8 +576,8 @@ func (m Model) viewMessage() string {
 	b.WriteString(m.messageView.View())
 	b.WriteString("\n")
 
-	help := "↑/↓: scroll • r: reply • R: reply all • esc/q: back"
-	b.WriteString(helpStyle.Render(help))
+	m.help.Width = m.width
+	b.WriteString(m.help.View(messageKeyMap{}))
 
 	return b.String()
 }
@@ -518,8 +606,8 @@ func (m Model) viewCompose() string {
 		b.WriteString("\n")
 	}
 
-	help := "tab: next field • ctrl+s: send • esc: cancel"
-	b.WriteString(helpStyle.Render(help))
+	m.help.Width = m.width
+	b.WriteString(m.help.View(composeKeyMap{}))
 
 	return b.String()
 }
@@ -538,6 +626,10 @@ func (m Model) viewMailboxes() string {
 		}
 		b.WriteString("\n")
 	}
+
+	b.WriteString("\n")
+	m.help.Width = m.width
+	b.WriteString(m.help.View(mailboxesKeyMap{}))
 
 	return b.String()
 }
