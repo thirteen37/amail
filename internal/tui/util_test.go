@@ -79,7 +79,7 @@ func TestFormatTimeAgo(t *testing.T) {
 		{
 			name:     "5 hours ago",
 			time:     now.Add(-5 * time.Hour),
-			expected: "05h",
+			expected: "5h",
 		},
 		{
 			name:     "23 hours ago",

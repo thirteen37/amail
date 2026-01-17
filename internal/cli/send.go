@@ -47,16 +47,11 @@ func runSend(cmd *cobra.Command, args []string) error {
 	subject := args[1]
 	body := args[2]
 
-	// Validate priority
-	validPriorities := map[string]bool{"low": true, "normal": true, "high": true, "urgent": true}
-	if !validPriorities[sendPriority] {
-		return fmt.Errorf("invalid priority: %s (must be low, normal, high, or urgent)", sendPriority)
+	if err := validatePriority(sendPriority); err != nil {
+		return err
 	}
-
-	// Validate type
-	validTypes := map[string]bool{"message": true, "request": true, "response": true, "notification": true}
-	if !validTypes[sendType] {
-		return fmt.Errorf("invalid type: %s (must be message, request, response, or notification)", sendType)
+	if err := validateMsgType(sendType); err != nil {
+		return err
 	}
 
 	// Open project

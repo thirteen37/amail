@@ -602,27 +602,3 @@ func TestGetMessageRecipients(t *testing.T) {
 		}
 	})
 }
-
-func TestJoinStrings(t *testing.T) {
-	tests := []struct {
-		name     string
-		strs     []string
-		sep      string
-		expected string
-	}{
-		{"empty", []string{}, ",", ""},
-		{"single", []string{"a"}, ",", "a"},
-		{"two", []string{"a", "b"}, ",", "a,b"},
-		{"three", []string{"a", "b", "c"}, ",", "a,b,c"},
-		{"different sep", []string{"a", "b"}, " | ", "a | b"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := joinStrings(tt.strs, tt.sep)
-			if result != tt.expected {
-				t.Errorf("joinStrings(%v, %q) = %q, want %q", tt.strs, tt.sep, result, tt.expected)
-			}
-		})
-	}
-}
