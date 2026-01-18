@@ -1,7 +1,7 @@
 ---
 name: amail
 description: This skill should be used when the user asks to "send a message to an agent", "check inbox", "notify another agent", "tell dev about...", "ask qa...", "read my messages", "any new messages?", or mentions inter-agent communication. At session start, use this skill to establish identity and check for pending messages.
-version: 1.0.0
+version: 0.2.0
 ---
 
 # amail - Agent Communication Skill

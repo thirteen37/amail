@@ -1,6 +1,6 @@
 {
   "name": "amail",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Agent-to-agent and agent-to-user messaging for multi-agent coordination",
   "author": {
     "name": "Yu-Xi Lim",

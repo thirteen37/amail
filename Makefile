@@ -1,6 +1,6 @@
 .PHONY: build install clean test coverage install-skill
 
-VERSION := 0.1.0
+VERSION := 0.2.0
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -28,7 +28,7 @@ coverage:
 
 install-skill:
 	@mkdir -p ~/.claude/skills/amail
-	@cp skill/SKILL.md ~/.claude/skills/amail/SKILL.md
+	@cp skills/amail/SKILL.md ~/.claude/skills/amail/SKILL.md
 	@echo "✓ Installed skill to ~/.claude/skills/amail/"
 	@echo "  Restart Claude Code to use the skill"
 
