@@ -110,26 +110,16 @@ func checkAndNotify(database *db.DB, cfg *config.Config, toID string) error {
 
 	// Notify for each new message
 	for _, msg := range messages {
-		// Get notification commands based on priority
+		// Execute notification commands if configured
 		commands := cfg.GetNotifyCommands(msg.Priority)
-		if len(commands) == 0 {
-			// Mark as notified even if no commands configured
-			if err := database.MarkNotified(msg.ID, toID); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to mark notified: %v\n", err)
+		if len(commands) > 0 {
+			notifyMsg := notify.FromInboxMessage(&msg)
+			for _, err := range notify.ExecuteAll(commands, notifyMsg) {
+				fmt.Fprintf(os.Stderr, "Notification error: %v\n", err)
 			}
-			continue
 		}
 
-		// Execute notifications
-		notifyMsg := notify.FromInboxMessage(&msg)
-		errors := notify.ExecuteAll(commands, notifyMsg)
-
-		// Log any errors
-		for _, err := range errors {
-			fmt.Fprintf(os.Stderr, "Notification error: %v\n", err)
-		}
-
-		// Mark as notified in database
+		// Mark as notified
 		if err := database.MarkNotified(msg.ID, toID); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to mark notified: %v\n", err)
 		}
