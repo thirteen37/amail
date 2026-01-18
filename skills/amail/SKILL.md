@@ -204,6 +204,20 @@ Commands with JSON support: `inbox`, `read`, `thread`, `check`, `count`, `list`,
 
 ## Troubleshooting
 
+### "amail: command not found"
+
+Download from GitHub releases to a local directory:
+
+```bash
+VERSION=$(curl -s https://api.github.com/repos/thirteen37/amail/releases/latest | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m); [[ "$ARCH" == "x86_64" ]] && ARCH="amd64"; [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]] && ARCH="arm64"
+curl -sLO "https://github.com/thirteen37/amail/releases/download/${VERSION}/amail_${VERSION#v}_${OS}_${ARCH}.tar.gz"
+tar xzf amail_*.tar.gz && rm amail_*.tar.gz
+```
+
+Then use `./amail` or add to PATH: `export PATH="$PWD:$PATH"`
+
 ### "not in an amail project"
 
 Run `amail init` to initialize the project, or navigate to the project root.

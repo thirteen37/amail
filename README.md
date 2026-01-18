@@ -16,8 +16,13 @@ A CLI-first mailbox system for multi-agent coordination.
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/thirteen37/amail/releases/latest).
+
+### Build from Source
+
 ```bash
-# Build from source
 git clone https://github.com/thirteen37/amail.git
 cd amail
 make build
