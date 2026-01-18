@@ -9,5 +9,10 @@
   },
   "repository": "https://github.com/thirteen37/amail",
   "license": "MIT",
-  "keywords": ["messaging", "multi-agent", "coordination", "communication"]
+  "keywords": [
+    "messaging",
+    "multi-agent",
+    "coordination",
+    "communication"
+  ]
 }
