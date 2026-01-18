@@ -49,15 +49,14 @@ type DB struct {
 
 // Open opens the database at the given path
 func Open(path string) (*DB, error) {
-	conn, err := sql.Open("sqlite", path)
+	// Use connection string pragmas to ensure they apply to all pooled connections
+	// - foreign_keys: enforce referential integrity
+	// - journal_mode=WAL: enable concurrent read/write access
+	// - busy_timeout: wait up to 5 seconds on lock contention
+	connStr := path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	conn, err := sql.Open("sqlite", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Enable foreign keys
-	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
 	return &DB{conn: conn, path: path}, nil
@@ -72,8 +71,10 @@ func (db *DB) Init() error {
 	return nil
 }
 
-// Close closes the database connection
+// Close checkpoints the WAL and closes the database connection
 func (db *DB) Close() error {
+	// Checkpoint WAL to minimize file size (PASSIVE doesn't block readers)
+	_, _ = db.conn.Exec("PRAGMA wal_checkpoint(PASSIVE)")
 	return db.conn.Close()
 }
 
@@ -399,6 +400,84 @@ func (db *DB) MarkRead(messageID, toID string) error {
 		time.Now(), messageID, toID)
 	if err != nil {
 		return fmt.Errorf("failed to mark as read: %w", err)
+	}
+	return nil
+}
+
+// GetUnnotified returns unread messages that haven't been notified yet
+func (db *DB) GetUnnotified(toID string) ([]InboxMessage, error) {
+	query := `
+		SELECT m.id, m.from_id, m.subject, m.body, m.priority, m.msg_type,
+		       m.thread_id, m.reply_to_id, m.created_at, r.status, r.read_at
+		FROM messages m
+		JOIN recipients r ON m.id = r.message_id
+		WHERE r.to_id = ? AND r.status = 'unread' AND r.notified_at IS NULL
+		ORDER BY m.created_at DESC`
+
+	rows, err := db.conn.Query(query, toID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query unnotified: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []InboxMessage
+	var messageIDs []string
+	for rows.Next() {
+		var msg InboxMessage
+		var threadID, replyToID sql.NullString
+		var readAt sql.NullTime
+
+		err := rows.Scan(
+			&msg.ID, &msg.FromID, &msg.Subject, &msg.Body, &msg.Priority, &msg.MsgType,
+			&threadID, &replyToID, &msg.CreatedAt, &msg.Status, &readAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		if threadID.Valid {
+			msg.ThreadID = &threadID.String
+		}
+		if replyToID.Valid {
+			msg.ReplyToID = &replyToID.String
+		}
+		if readAt.Valid {
+			msg.ReadAt = &readAt.Time
+		}
+
+		messages = append(messages, msg)
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating unnotified rows: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return messages, nil
+	}
+
+	// Fetch all recipients for all messages in a single query
+	recipientMap, err := db.getRecipientsForMessages(messageIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign recipients to messages
+	for i := range messages {
+		messages[i].ToIDs = recipientMap[messages[i].ID]
+	}
+
+	return messages, nil
+}
+
+// MarkNotified marks a message as notified for a recipient
+func (db *DB) MarkNotified(messageID, toID string) error {
+	_, err := db.conn.Exec(`
+		UPDATE recipients SET notified_at = ?
+		WHERE message_id = ? AND to_id = ?`,
+		time.Now(), messageID, toID)
+	if err != nil {
+		return fmt.Errorf("failed to mark as notified: %w", err)
 	}
 	return nil
 }

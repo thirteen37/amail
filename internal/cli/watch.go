@@ -76,9 +76,6 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
-	// Track last check time
-	lastCheck := time.Now()
-
 	// Set up signal handling
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -87,14 +84,14 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	defer ticker.Stop()
 
 	// Initial check
-	if err := checkAndNotify(database, cfg, toID, &lastCheck); err != nil {
+	if err := checkAndNotify(database, cfg, toID); err != nil {
 		fmt.Fprintf(os.Stderr, "Error checking inbox: %v\n", err)
 	}
 
 	for {
 		select {
 		case <-ticker.C:
-			if err := checkAndNotify(database, cfg, toID, &lastCheck); err != nil {
+			if err := checkAndNotify(database, cfg, toID); err != nil {
 				fmt.Fprintf(os.Stderr, "Error checking inbox: %v\n", err)
 			}
 		case <-sigChan:
@@ -104,29 +101,22 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func checkAndNotify(database *db.DB, cfg *config.Config, toID string, lastCheck *time.Time) error {
-	// Get unread messages
-	messages, err := database.GetInbox(toID, false)
+func checkAndNotify(database *db.DB, cfg *config.Config, toID string) error {
+	// Get unread messages that haven't been notified
+	messages, err := database.GetUnnotified(toID)
 	if err != nil {
 		return err
 	}
 
-	// Filter to messages created since last check
-	var newMessages []db.InboxMessage
-	for _, msg := range messages {
-		if msg.CreatedAt.After(*lastCheck) {
-			newMessages = append(newMessages, msg)
-		}
-	}
-
-	// Update last check time
-	*lastCheck = time.Now()
-
 	// Notify for each new message
-	for _, msg := range newMessages {
+	for _, msg := range messages {
 		// Get notification commands based on priority
 		commands := cfg.GetNotifyCommands(msg.Priority)
 		if len(commands) == 0 {
+			// Mark as notified even if no commands configured
+			if err := database.MarkNotified(msg.ID, toID); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to mark notified: %v\n", err)
+			}
 			continue
 		}
 
@@ -139,8 +129,11 @@ func checkAndNotify(database *db.DB, cfg *config.Config, toID string, lastCheck 
 			fmt.Fprintf(os.Stderr, "Notification error: %v\n", err)
 		}
 
-		// Mark as notified (update notified_at in database)
-		// For now just log
+		// Mark as notified in database
+		if err := database.MarkNotified(msg.ID, toID); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to mark notified: %v\n", err)
+		}
+
 		fmt.Printf("[%s] New message from %s: %s\n",
 			time.Now().Format("15:04:05"), msg.FromID, msg.Subject)
 	}
