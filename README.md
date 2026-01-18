@@ -16,17 +16,21 @@ A CLI-first mailbox system for multi-agent coordination.
 
 ## Installation
 
+### Claude Code Plugin (Recommended)
+
 ```bash
-# Build from source
+/plugin install amail
+```
+
+This installs both the CLI and the Claude Code skill.
+
+### From Source
+
+```bash
 git clone https://github.com/thirteen37/amail.git
 cd amail
-make build
-
-# Install to GOPATH/bin
-make install
-
-# Install Claude Code skill (optional)
-make install-skill
+make install          # Install CLI to GOPATH/bin
+make install-skill    # Install Claude Code skill
 ```
 
 ## Quick Start
@@ -249,13 +253,15 @@ amail send dev,pm "Tests passed" "All auth tests passing"
 
 ## Claude Code Integration
 
-Install the skill:
+If you installed via `/plugin install amail`, the skill is already active.
+
+For manual installations, install the skill separately:
 
 ```bash
 make install-skill
 ```
 
-This installs `SKILL.md` to `~/.claude/skills/amail/`. Claude Code will automatically use it when messaging intents are detected.
+Claude Code will automatically use the skill when messaging intents are detected.
 
 Example prompts Claude will understand:
 - "Send a message to dev that the API is ready"
