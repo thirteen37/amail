@@ -48,6 +48,20 @@ identity.Resolve()  config.LoadProject()  db.OpenProject()
 - `messages` - Core message storage with threading support (thread_id, reply_to_id)
 - `recipients` - Per-recipient read status (message_id + to_id compound PK)
 
+### Database Concurrency
+
+The database uses SQLite WAL mode for safe multi-process access:
+
+- **WAL mode**: Enables concurrent readers during writes
+- **Busy timeout**: 5-second wait on lock contention (vs immediate failure)
+- **Checkpoint on close**: Minimizes WAL file size when closing gracefully
+
+Files created by WAL mode:
+- `.amail/mail.db-wal` - Write-ahead log
+- `.amail/mail.db-shm` - Shared memory (coordinates processes)
+
+These files are normal and will be cleaned up on checkpoint.
+
 ### Identity Resolution Order
 
 1. `$AMAIL_IDENTITY` environment variable

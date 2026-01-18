@@ -567,6 +567,141 @@ func TestGetRecipientsForMessages(t *testing.T) {
 	})
 }
 
+func TestGetUnnotified(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Send two messages
+	msg1 := &Message{
+		ID:        "msg001",
+		FromID:    "pm",
+		Subject:   "First",
+		Body:      "First message",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now().Add(-time.Hour),
+	}
+	db.SendMessage(msg1, []string{"dev"})
+
+	msg2 := &Message{
+		ID:        "msg002",
+		FromID:    "qa",
+		Subject:   "Second",
+		Body:      "Second message",
+		Priority:  "high",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg2, []string{"dev"})
+
+	// Both should be unnotified initially
+	unnotified, err := db.GetUnnotified("dev")
+	if err != nil {
+		t.Fatalf("GetUnnotified failed: %v", err)
+	}
+	if len(unnotified) != 2 {
+		t.Errorf("expected 2 unnotified, got %d", len(unnotified))
+	}
+
+	// Mark one as notified
+	err = db.MarkNotified("msg001", "dev")
+	if err != nil {
+		t.Fatalf("MarkNotified failed: %v", err)
+	}
+
+	// Only one should be unnotified now
+	unnotified, err = db.GetUnnotified("dev")
+	if err != nil {
+		t.Fatalf("GetUnnotified failed: %v", err)
+	}
+	if len(unnotified) != 1 {
+		t.Errorf("expected 1 unnotified after marking, got %d", len(unnotified))
+	}
+	if unnotified[0].ID != "msg002" {
+		t.Errorf("expected msg002 to be unnotified, got %s", unnotified[0].ID)
+	}
+
+	// pm's unnotified should be empty
+	pmUnnotified, err := db.GetUnnotified("pm")
+	if err != nil {
+		t.Fatalf("GetUnnotified for pm failed: %v", err)
+	}
+	if len(pmUnnotified) != 0 {
+		t.Errorf("expected 0 unnotified for pm, got %d", len(pmUnnotified))
+	}
+}
+
+func TestMarkNotified(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	msg := &Message{
+		ID:        "msg001",
+		FromID:    "pm",
+		Subject:   "Test",
+		Body:      "Body",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg, []string{"dev"})
+
+	// Initially unnotified
+	unnotified, _ := db.GetUnnotified("dev")
+	if len(unnotified) != 1 {
+		t.Errorf("expected 1 unnotified initially, got %d", len(unnotified))
+	}
+
+	// Mark as notified
+	err := db.MarkNotified("msg001", "dev")
+	if err != nil {
+		t.Fatalf("MarkNotified failed: %v", err)
+	}
+
+	// Now should be 0 unnotified
+	unnotified, _ = db.GetUnnotified("dev")
+	if len(unnotified) != 0 {
+		t.Errorf("expected 0 unnotified after marking, got %d", len(unnotified))
+	}
+
+	// Idempotent - marking again should not error
+	err = db.MarkNotified("msg001", "dev")
+	if err != nil {
+		t.Errorf("second MarkNotified should not error: %v", err)
+	}
+
+	// Message should still be in inbox (notified doesn't affect read status)
+	inbox, _ := db.GetInbox("dev", false)
+	if len(inbox) != 1 {
+		t.Errorf("expected message still in inbox after notification, got %d", len(inbox))
+	}
+}
+
+func TestGetUnnotifiedExcludesRead(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	msg := &Message{
+		ID:        "msg001",
+		FromID:    "pm",
+		Subject:   "Test",
+		Body:      "Body",
+		Priority:  "normal",
+		MsgType:   "message",
+		CreatedAt: time.Now(),
+	}
+	db.SendMessage(msg, []string{"dev"})
+
+	// Mark as read (but not notified)
+	db.MarkRead("msg001", "dev")
+
+	// Should not appear in unnotified (because it's read)
+	unnotified, _ := db.GetUnnotified("dev")
+	if len(unnotified) != 0 {
+		t.Errorf("expected 0 unnotified for read messages, got %d", len(unnotified))
+	}
+}
+
 func TestGetMessageRecipients(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
