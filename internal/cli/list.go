@@ -8,6 +8,18 @@ import (
 	"github.com/thirteen37/amail/internal/db"
 )
 
+// ListOutput is the JSON output structure for the list command
+type ListOutput struct {
+	Roles         []string          `json:"roles"`
+	Groups        map[string]GroupJSON `json:"groups,omitempty"`
+	BuiltinGroups []string          `json:"builtin_groups"`
+}
+
+// GroupJSON is the JSON representation of a group
+type GroupJSON struct {
+	Members []string `json:"members"`
+}
+
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all mailboxes/roles",
@@ -35,6 +47,25 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Build roles list (including reserved "user")
+	roles := append(cfg.Agents.Roles, "user")
+
+	// JSON output
+	if IsJSONOutput() {
+		output := ListOutput{
+			Roles:         roles,
+			BuiltinGroups: []string{"@all", "@agents", "@others"},
+		}
+		if len(cfg.Groups) > 0 {
+			output.Groups = make(map[string]GroupJSON)
+			for name, members := range cfg.Groups {
+				output.Groups[name] = GroupJSON{Members: members}
+			}
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	fmt.Println("Roles:")
 	for _, role := range cfg.Agents.Roles {
 		fmt.Printf("  %s\n", role)

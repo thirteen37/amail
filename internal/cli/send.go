@@ -11,6 +11,13 @@ import (
 	"github.com/thirteen37/amail/internal/identity"
 )
 
+// SendOutput is the JSON output structure for the send command
+type SendOutput struct {
+	ID         string   `json:"id"`
+	ShortID    string   `json:"short_id"`
+	Recipients []string `json:"recipients"`
+}
+
 var sendCmd = &cobra.Command{
 	Use:   "send <to> <subject> <body>",
 	Short: "Send a message",
@@ -106,6 +113,17 @@ func runSend(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 
+	// JSON output
+	if IsJSONOutput() {
+		output := SendOutput{
+			ID:         msg.ID,
+			ShortID:    SafeShortID(msg.ID),
+			Recipients: recipients,
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	fmt.Printf("✓ Sent %s to: %s\n", msg.ID, strings.Join(recipients, ", "))
 
 	return nil

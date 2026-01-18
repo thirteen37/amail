@@ -140,6 +140,31 @@ amail stats
 amail tui
 ```
 
+## JSON Output
+
+Commands automatically output JSON when piped (useful for parsing):
+
+```bash
+# Get message ID from inbox
+amail inbox | jq '.data.messages[0].id'
+
+# Force JSON in terminal
+amail inbox --json
+
+# Force text when piped
+amail inbox --text | cat
+```
+
+JSON envelope format:
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Commands with JSON support: `inbox`, `read`, `thread`, `check`, `count`, `list`, `stats`, `whoami`, `version`, `send`, `reply`
+
 ## Message Types and Priorities
 
 ### Priorities

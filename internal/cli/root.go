@@ -19,11 +19,22 @@ Agents identify by role (pm, dev, qa, etc.), not by session.`,
 
 // Execute runs the root command
 func Execute() error {
-	return rootCmd.Execute()
+	// Configure Cobra to not print errors when JSON output is active
+	// We'll handle error output ourselves
+	rootCmd.SilenceErrors = IsJSONOutput()
+	rootCmd.SilenceUsage = IsJSONOutput()
+
+	err := rootCmd.Execute()
+	if err != nil && IsJSONOutput() {
+		PrintJSONError(err, "")
+	}
+	return err
 }
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.PersistentFlags().BoolVar(&forceJSON, "json", false, "Force JSON output")
+	rootCmd.PersistentFlags().BoolVar(&forceText, "text", false, "Force human-readable text output")
 }
 
 // exitWithError prints an error message and exits

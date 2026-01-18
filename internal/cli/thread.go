@@ -5,10 +5,29 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thirteen37/amail/internal/db"
 )
+
+// ThreadOutput is the JSON output structure for the thread command
+type ThreadOutput struct {
+	ThreadID string              `json:"thread_id"`
+	Subject  string              `json:"subject"`
+	Messages []ThreadMessageJSON `json:"messages"`
+	Count    int                 `json:"count"`
+}
+
+// ThreadMessageJSON is the JSON representation of a thread message
+type ThreadMessageJSON struct {
+	ID        string   `json:"id"`
+	ShortID   string   `json:"short_id"`
+	From      string   `json:"from"`
+	To        []string `json:"to"`
+	Body      string   `json:"body"`
+	CreatedAt string   `json:"created_at"`
+}
 
 var threadCmd = &cobra.Command{
 	Use:   "thread <message-id>",
@@ -69,15 +88,40 @@ func runThread(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get thread: %w", err)
 	}
 
+	// Get subject from first message
+	subject := ""
+	if len(messages) > 0 {
+		subject = messages[0].Subject
+	}
+	if subject == "" {
+		subject = "(no subject)"
+	}
+
+	// JSON output
+	if IsJSONOutput() {
+		output := ThreadOutput{
+			ThreadID: threadRootID,
+			Subject:  subject,
+			Messages: make([]ThreadMessageJSON, len(messages)),
+			Count:    len(messages),
+		}
+		for i, m := range messages {
+			output.Messages[i] = ThreadMessageJSON{
+				ID:        m.ID,
+				ShortID:   SafeShortID(m.ID),
+				From:      m.FromID,
+				To:        m.ToIDs,
+				Body:      m.Body,
+				CreatedAt: m.CreatedAt.Format(time.RFC3339),
+			}
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	if len(messages) == 0 {
 		fmt.Println("No messages in thread.")
 		return nil
-	}
-
-	// Get subject from first message
-	subject := messages[0].Subject
-	if subject == "" {
-		subject = "(no subject)"
 	}
 
 	fmt.Printf("Thread: %s (%d messages)\n", subject, len(messages))

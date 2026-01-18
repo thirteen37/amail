@@ -5,12 +5,31 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thirteen37/amail/internal/config"
 	"github.com/thirteen37/amail/internal/db"
 	"github.com/thirteen37/amail/internal/identity"
 )
+
+// InboxOutput is the JSON output structure for the inbox command
+type InboxOutput struct {
+	Messages []InboxMessageJSON `json:"messages"`
+	Count    int                `json:"count"`
+}
+
+// InboxMessageJSON is the JSON representation of an inbox message
+type InboxMessageJSON struct {
+	ID        string   `json:"id"`
+	ShortID   string   `json:"short_id"`
+	From      string   `json:"from"`
+	To        []string `json:"to"`
+	Subject   string   `json:"subject"`
+	Priority  string   `json:"priority"`
+	Status    string   `json:"status"`
+	CreatedAt string   `json:"created_at"`
+}
 
 var inboxCmd = &cobra.Command{
 	Use:   "inbox",
@@ -75,6 +94,28 @@ func runInbox(cmd *cobra.Command, args []string) error {
 		messages = filtered
 	}
 
+	// JSON output
+	if IsJSONOutput() {
+		output := InboxOutput{
+			Messages: make([]InboxMessageJSON, len(messages)),
+			Count:    len(messages),
+		}
+		for i, m := range messages {
+			output.Messages[i] = InboxMessageJSON{
+				ID:        m.ID,
+				ShortID:   SafeShortID(m.ID),
+				From:      m.FromID,
+				To:        m.ToIDs,
+				Subject:   m.Subject,
+				Priority:  m.Priority,
+				Status:    m.Status,
+				CreatedAt: m.CreatedAt.Format(time.RFC3339),
+			}
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	if len(messages) == 0 {
 		if inboxAll {
 			fmt.Println("No messages.")

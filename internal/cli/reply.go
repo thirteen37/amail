@@ -11,6 +11,14 @@ import (
 	"github.com/thirteen37/amail/internal/identity"
 )
 
+// ReplyOutput is the JSON output structure for the reply command
+type ReplyOutput struct {
+	ID         string   `json:"id"`
+	ShortID    string   `json:"short_id"`
+	ThreadID   string   `json:"thread_id"`
+	Recipients []string `json:"recipients"`
+}
+
 var replyCmd = &cobra.Command{
 	Use:   "reply <message-id> <body>",
 	Short: "Reply to a message",
@@ -141,6 +149,18 @@ func runReply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to send reply: %w", err)
 	}
 
+	// JSON output
+	if IsJSONOutput() {
+		output := ReplyOutput{
+			ID:         msg.ID,
+			ShortID:    SafeShortID(msg.ID),
+			ThreadID:   threadID,
+			Recipients: recipients,
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	fmt.Printf("✓ Sent %s to: %s (thread: %s)\n", SafeShortID(msg.ID), strings.Join(recipients, ", "), SafeShortID(threadID))
 
 	return nil

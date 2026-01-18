@@ -9,6 +9,14 @@ import (
 	"github.com/thirteen37/amail/internal/identity"
 )
 
+// WhoamiOutput is the JSON output structure for the whoami command
+type WhoamiOutput struct {
+	Identity   *string  `json:"identity"`
+	Source     string   `json:"source,omitempty"`
+	Valid      bool     `json:"valid"`
+	ValidRoles []string `json:"valid_roles,omitempty"`
+}
+
 var whoamiCmd = &cobra.Command{
 	Use:   "whoami",
 	Short: "Show current identity",
@@ -47,6 +55,22 @@ func runWhoami(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// JSON output
+	if IsJSONOutput() {
+		output := WhoamiOutput{
+			ValidRoles: cfg.AllRoles(),
+		}
+		if res != nil {
+			output.Identity = &res.Identity
+			output.Source = res.Source
+			output.Valid = cfg.IsValidRole(res.Identity)
+		} else {
+			output.Valid = false
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
 	if res == nil {
 		fmt.Println("Identity not set.")
 		fmt.Println()

@@ -10,6 +10,20 @@ import (
 	"github.com/thirteen37/amail/internal/db"
 )
 
+// StatsOutput is the JSON output structure for the stats command
+type StatsOutput struct {
+	Roles       []RoleStatsJSON `json:"roles"`
+	TotalUnread int             `json:"total_unread"`
+	TotalAll    int             `json:"total_all"`
+}
+
+// RoleStatsJSON is the JSON representation of role statistics
+type RoleStatsJSON struct {
+	Role   string `json:"role"`
+	Unread int    `json:"unread"`
+	Total  int    `json:"total"`
+}
+
 var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Show message statistics",
@@ -38,16 +52,9 @@ func runStats(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	fmt.Println("Message Statistics")
-	fmt.Println("==================")
-	fmt.Println()
-
-	// Get stats for each role
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ROLE\tUNREAD\tTOTAL")
-	fmt.Fprintln(w, "----\t------\t-----")
-
+	// Collect stats for each role
 	allRoles := cfg.AllRoles()
+	var roleStats []RoleStatsJSON
 	var totalUnread, totalAll int
 
 	for _, role := range allRoles {
@@ -62,10 +69,37 @@ func runStats(cmd *cobra.Command, args []string) error {
 		}
 
 		if all > 0 {
-			fmt.Fprintf(w, "%s\t%d\t%d\n", role, unread, all)
+			roleStats = append(roleStats, RoleStatsJSON{
+				Role:   role,
+				Unread: unread,
+				Total:  all,
+			})
 			totalUnread += unread
 			totalAll += all
 		}
+	}
+
+	// JSON output
+	if IsJSONOutput() {
+		output := StatsOutput{
+			Roles:       roleStats,
+			TotalUnread: totalUnread,
+			TotalAll:    totalAll,
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
+	fmt.Println("Message Statistics")
+	fmt.Println("==================")
+	fmt.Println()
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ROLE\tUNREAD\tTOTAL")
+	fmt.Fprintln(w, "----\t------\t-----")
+
+	for _, rs := range roleStats {
+		fmt.Fprintf(w, "%s\t%d\t%d\n", rs.Role, rs.Unread, rs.Total)
 	}
 
 	fmt.Fprintln(w, "----\t------\t-----")

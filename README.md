@@ -82,6 +82,58 @@ amail tui
 | `amail check [--notify]` | One-shot check |
 | `amail tui` | Interactive terminal UI |
 
+## Output Formats
+
+By default, amail outputs human-readable text in terminals and automatically switches to JSON when piped or redirected. This enables seamless integration with scripts and tools like `jq`.
+
+```bash
+# Human-readable in terminal
+amail inbox
+
+# Auto-JSON when piped
+amail inbox | jq '.data.messages[0].id'
+
+# Force JSON in terminal
+amail inbox --json
+
+# Force text when piped
+amail inbox --text | cat
+```
+
+### JSON Envelope
+
+All JSON output uses a consistent envelope:
+
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Errors:
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "error description",
+    "code": "ERROR_CODE"
+  }
+}
+```
+
+### Commands with JSON Support
+
+Most read commands support JSON output:
+- `inbox`, `read`, `thread`, `check`, `count`
+- `list`, `stats`, `whoami`, `version`
+- `send`, `reply` (return message ID and recipients)
+
+Commands **without** JSON support (interactive/special):
+- `init`, `use`, `tui`, `watch`
+- `mark-read`, `archive`, `delete` (confirmations only)
+
 ## Recipients
 
 ```bash

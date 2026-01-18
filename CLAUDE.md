@@ -36,7 +36,7 @@ identity.Resolve()  config.LoadProject()  db.OpenProject()
 
 | Package | Purpose |
 |---------|---------|
-| `internal/cli` | Cobra command handlers, one file per command |
+| `internal/cli` | Cobra command handlers, one file per command, JSON/text output helpers |
 | `internal/db` | SQLite persistence, `Message` and `Recipient` types |
 | `internal/config` | TOML config loading, role/group validation |
 | `internal/identity` | Identity resolution chain (env var → tmux mapping → undefined) |
@@ -73,6 +73,25 @@ These files are normal and will be cleaned up on checkpoint.
 - **Project discovery:** Commands search parent directories for `.amail/` to find project root
 - **Notification safety:** Template variables passed via environment to prevent shell injection
 - **Lazy identity:** Identity only resolved when a command actually needs it
+- **Smart output format:** JSON when piped/redirected, human-readable for terminals
+
+### Output Format Pattern
+
+Commands support dual output formats via `internal/cli/output.go`:
+
+```go
+// Check output mode (respects --json/--text flags and TTY detection)
+if IsJSONOutput() {
+    return PrintJSON(MyOutput{...})
+}
+// Text output follows...
+```
+
+- `IsJSONOutput()` - Returns true if JSON output should be used
+- `PrintJSON(data)` - Wraps data in `{"success": true, "data": ...}`
+- `PrintJSONError(err, code)` - Wraps error in `{"success": false, "error": ...}`
+
+Each command defines its own output struct (e.g., `InboxOutput`, `ReadOutput`) in its file.
 
 ## Git Workflow
 

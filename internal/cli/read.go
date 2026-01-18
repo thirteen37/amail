@@ -3,12 +3,29 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thirteen37/amail/internal/config"
 	"github.com/thirteen37/amail/internal/db"
 	"github.com/thirteen37/amail/internal/identity"
 )
+
+// ReadOutput is the JSON output structure for the read command
+type ReadOutput struct {
+	ID        string   `json:"id"`
+	ShortID   string   `json:"short_id"`
+	From      string   `json:"from"`
+	To        []string `json:"to"`
+	Subject   string   `json:"subject"`
+	Body      string   `json:"body"`
+	Priority  string   `json:"priority"`
+	Type      string   `json:"type"`
+	Status    string   `json:"status"`
+	ThreadID  *string  `json:"thread_id,omitempty"`
+	ReplyToID *string  `json:"reply_to_id,omitempty"`
+	CreatedAt string   `json:"created_at"`
+}
 
 var readCmd = &cobra.Command{
 	Use:   "read [message-id]",
@@ -61,6 +78,9 @@ func runRead(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get latest message: %w", err)
 		}
 		if msg == nil {
+			if IsJSONOutput() {
+				return PrintJSON(nil)
+			}
 			fmt.Println("No unread messages.")
 			return nil
 		}
@@ -82,15 +102,35 @@ func runRead(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Display message
-	displayMessage(msg)
-
 	// Mark as read
 	if msg.Status == "unread" {
 		if err := database.MarkRead(msg.ID, toID); err != nil {
 			return fmt.Errorf("failed to mark as read: %w", err)
 		}
+		msg.Status = "read" // Update local copy for accurate output
 	}
+
+	// JSON output
+	if IsJSONOutput() {
+		output := ReadOutput{
+			ID:        msg.ID,
+			ShortID:   SafeShortID(msg.ID),
+			From:      msg.FromID,
+			To:        msg.ToIDs,
+			Subject:   msg.Subject,
+			Body:      msg.Body,
+			Priority:  msg.Priority,
+			Type:      msg.MsgType,
+			Status:    msg.Status,
+			ThreadID:  msg.ThreadID,
+			ReplyToID: msg.ReplyToID,
+			CreatedAt: msg.CreatedAt.Format(time.RFC3339),
+		}
+		return PrintJSON(output)
+	}
+
+	// Text output
+	displayMessage(msg)
 
 	return nil
 }
